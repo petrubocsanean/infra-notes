@@ -1,0 +1,59 @@
+version: '3.1'
+
+services:
+
+  wordpress:
+    image: wordpress:latest
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    container_name: website-wp
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: websitedb
+      WORDPRESS_DB_USER: user
+      WORDPRESS_DB_PASSWORD: password
+      WORDPRESS_DB_NAME: website
+    volumes:
+      - /opt/containers/website/wp:/var/www/html
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.website.entrypoints=http"
+      - "traefik.http.routers.website.rule=Host(`typewide.com`,`www.typewide.com`)"
+      - "traefik.http.middlewares.website-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.website.middlewares=website-https-redirect"
+      - "traefik.http.routers.website-secure.entrypoints=https"
+      - "traefik.http.routers.website-secure.rule=Host(`typewide.com`,`www.typewide.com`)"
+      - "traefik.http.routers.website-secure.tls=true"
+      - "traefik.http.routers.website-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.website-secure.service=website"
+      - "traefik.http.services.website.loadbalancer.server.port=80"
+      - "traefik.http.routers.website-secure.middlewares=secHeaders@file"
+      - "traefik.docker.network=proxy"
+
+    networks:
+      - proxy
+      - default
+
+  websitedb:
+    image: mariadb:latest
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    container_name: website-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: website
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_RANDOM_ROOT_PASSWORD: '1'
+    volumes:
+      - /opt/containers/website/db:/var/lib/mysql
+    networks:
+      - default
+
+networks:
+  proxy:
+    external: true

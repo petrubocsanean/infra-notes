@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+  traefik:
+    image: traefik:v2.4.3
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - proxy
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      - CF_API_EMAIL=petru.bocsanean@gmail.com
+      - CF_API_KEY=My Global API Key
+      - CF_DNS_API_TOKEN=DNS:Edit-Token
+      - CF_ZONE_API_TOKEN=DNS:Read-Token
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data/traefik.yml:/traefik.yml:ro
+      - ./data/config.yml:/config.yml:ro
+      - ./data/acme.json:/acme.json
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.entrypoints=http"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.typewide.com`)"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=petru:$$2a$$12$$VxG6.8cu/2sTvMY0jH71huUnumtRF7spTcyAvA1p1p1QZBiRY8Xri"
+      - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.traefik.middlewares=traefik-https-redirect"
+      - "traefik.http.routers.traefik-secure.entrypoints=https"
+      - "traefik.http.routers.traefik-secure.rule=Host(`traefik.typewide.com`)"
+      - "traefik.http.routers.traefik-secure.middlewares=traefik-auth,secHeaders@file"
+      - "traefik.http.routers.traefik-secure.tls=true"
+      - "traefik.http.routers.traefik-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.traefik-secure.service=api@internal"
+      - "providers.file.filename=/config.yml"
+networks:
+  proxy:
+    external: true
